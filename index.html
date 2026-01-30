@@ -90,8 +90,11 @@
                 <input id="scan-quantity" type="number" min="1" value="1" inputmode="numeric">
             </div>
         </div>
-        <div id="reader" width="600px"></div>
-        <p class="hint">Point camera at a barcode</p>
+        <div class="field">
+            <label for="scan-photo">拍照辨識條碼</label>
+            <input id="scan-photo" type="file" accept="image/*" capture="environment">
+        </div>
+        <p class="hint">拍照後自動辨識條碼</p>
         <div id="scan-status" class="scan-status"></div>
     </main>
 
@@ -136,13 +139,13 @@
                 <input id="product-min-stock" type="number" min="0" placeholder="可選填" inputmode="numeric">
             </div>
             <div class="field">
-                <button id="product-scan-btn" class="primary-btn" type="button">開始掃條碼</button>
-            </div>
-            <div class="field">
                 <button id="product-save-btn" class="primary-btn" type="button">儲存商品明細</button>
             </div>
         </div>
-        <div id="product-reader" width="600px"></div>
+        <div class="field">
+            <label for="product-photo">拍照辨識條碼</label>
+            <input id="product-photo" type="file" accept="image/*" capture="environment">
+        </div>
         <div id="product-status" class="scan-status"></div>
     </main>
 
@@ -162,6 +165,8 @@
             </div>
         </div>
     </div>
+
+    <div id="file-reader" class="hidden"></div>
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
