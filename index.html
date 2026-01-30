@@ -23,8 +23,23 @@
         <div class="shape shape-3"></div>
     </div>
 
+    <!-- Portal Section -->
+    <main id="portal-section" class="container text-center">
+        <h1>Yun 的小世界</h1>
+        <p class="subtitle">選擇要使用的工具</p>
+
+        <div class="action-cards">
+            <div class="card" onclick="showSection('home-section')">
+                <div class="icon">🧰</div>
+                <h2>打工仔的盤點工具</h2>
+                <p>掃條碼、查庫存、進出貨紀錄</p>
+            </div>
+        </div>
+    </main>
+
     <!-- Home Section -->
-    <main id="home-section" class="container text-center">
+    <main id="home-section" class="container text-center hidden">
+        <button class="back-btn" onclick="showSection('portal-section')">← Back to Portal</button>
         <h1>Inventory Manager</h1>
         <p class="subtitle">Select an action to begin</p>
 
@@ -39,6 +54,12 @@
                 <div class="icon">📊</div>
                 <h2>View Inventory</h2>
                 <p>Check current stock levels</p>
+            </div>
+
+            <div class="card" onclick="showSection('product-update-section')">
+                <div class="icon">🧾</div>
+                <h2>商品明細更新</h2>
+                <p>掃條碼或手動輸入更新品項</p>
             </div>
         </div>
     </main>
@@ -95,6 +116,34 @@
         <div id="sheet-data" class="table-container">
             <div class="loading">Loading data...</div>
         </div>
+    </main>
+
+    <!-- Product Update Section -->
+    <main id="product-update-section" class="container hidden">
+        <button class="back-btn" onclick="showSection('home-section')">← Back to Home</button>
+        <h1>商品明細更新</h1>
+        <div class="scan-form">
+            <div class="field">
+                <label for="product-barcode">條碼</label>
+                <input id="product-barcode" type="text" placeholder="掃條碼或手動輸入" inputmode="numeric">
+            </div>
+            <div class="field">
+                <label for="product-name">品項名稱</label>
+                <input id="product-name" type="text" placeholder="手動輸入品項名稱">
+            </div>
+            <div class="field">
+                <label for="product-min-stock">庫存下限</label>
+                <input id="product-min-stock" type="number" min="0" placeholder="可選填" inputmode="numeric">
+            </div>
+            <div class="field">
+                <button id="product-scan-btn" class="primary-btn" type="button">開始掃條碼</button>
+            </div>
+            <div class="field">
+                <button id="product-save-btn" class="primary-btn" type="button">儲存商品明細</button>
+            </div>
+        </div>
+        <div id="product-reader" width="600px"></div>
+        <div id="product-status" class="scan-status"></div>
     </main>
 
     <!-- Quantity Modal -->

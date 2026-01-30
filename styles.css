@@ -12,15 +12,17 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   background: linear-gradient(135deg, #f4e9dd 0%, #e2cbb6 45%, #cfb49a 100%);
   color: #3f2f24;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2.5rem 0;
 }
 
 /* Animated Background Shapes */
 .background-shapes {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
@@ -95,6 +97,7 @@ body {
   max-width: 600px;
   width: 90%;
   animation: fadeIn 1s ease-out;
+  margin: 0 auto;
 }
 
 @keyframes fadeIn {
@@ -106,6 +109,20 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 1.5rem 0 2.5rem;
+  }
+
+  .container {
+    padding: 2.5rem 1.5rem;
+  }
+
+  h1 {
+    font-size: 2.6rem;
   }
 }
 
@@ -315,6 +332,15 @@ tr:hover td {
   border: 2px solid rgba(139, 94, 60, 0.15);
 }
 
+#product-reader {
+  width: 100%;
+  min-height: 240px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 1rem;
+  border: 2px solid rgba(139, 94, 60, 0.15);
+}
+
 .hint {
   margin-top: 1rem;
   font-size: 0.9rem;
@@ -387,6 +413,22 @@ tr:hover td {
   font-size: 0.95rem;
   color: #6b4b36;
   min-height: 1.2rem;
+}
+
+.primary-btn {
+  width: 100%;
+  border: 1px solid rgba(139, 94, 60, 0.35);
+  background: rgba(169, 113, 75, 0.22);
+  color: #4a3628;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.primary-btn:hover {
+  background: rgba(169, 113, 75, 0.3);
 }
 
 /* Scanner specific overrides for html5-qrcode */

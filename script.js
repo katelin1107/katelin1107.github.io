@@ -5,6 +5,7 @@ const GAS_WEB_APP_URL = ''; // 請填入 Google Apps Script Web App URL
 
 let sheetData = []; // Store data globally for lookup
 let html5QrcodeScanner = null;
+let productQrcodeScanner = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Initial fetch
@@ -43,6 +44,12 @@ function showSection(sectionId) {
     } else {
         stopScanner();
     }
+
+    if (sectionId === 'product-update-section') {
+        resetProductScannerUI();
+    } else {
+        stopProductScanner();
+    }
 }
 
 // Scanner Logic
@@ -70,6 +77,39 @@ function stopScanner() {
                 html5QrcodeScanner = null;
             }).catch(error => {
                 console.error("Failed to clear scanner", error);
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+}
+
+// Product Update Scanner
+function startProductScanner() {
+    const reader = document.getElementById('product-reader');
+    if (!reader) return;
+
+    if (productQrcodeScanner) {
+        return;
+    }
+
+    productQrcodeScanner = new Html5QrcodeScanner(
+        "product-reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        false
+    );
+
+    productQrcodeScanner.render(onProductScanSuccess, onScanFailure);
+    updateProductStatus('啟動掃描中...');
+}
+
+function stopProductScanner() {
+    if (productQrcodeScanner) {
+        try {
+            productQrcodeScanner.clear().then(() => {
+                productQrcodeScanner = null;
+            }).catch(error => {
+                console.error("Failed to clear product scanner", error);
             });
         } catch (e) {
             console.error(e);
@@ -130,6 +170,14 @@ function onScanFailure(error) {
     // console.warn(`Code scan error = ${error}`);
 }
 
+function onProductScanSuccess(decodedText) {
+    const barcodeInput = document.getElementById('product-barcode');
+    if (barcodeInput) {
+        barcodeInput.value = decodedText;
+    }
+    updateProductStatus(`已掃描條碼：${decodedText}`);
+}
+
 // Scan Controls
 function initScanControls() {
     const actionButtons = document.querySelectorAll('.segmented-btn');
@@ -140,6 +188,25 @@ function initScanControls() {
     });
 
     setStockAction('in');
+
+    const productScanBtn = document.getElementById('product-scan-btn');
+    if (productScanBtn) {
+        productScanBtn.addEventListener('click', () => {
+            if (productQrcodeScanner) {
+                stopProductScanner();
+                updateProductStatus('已停止掃描');
+                setProductScanButtonText('start');
+            } else {
+                startProductScanner();
+                setProductScanButtonText('stop');
+            }
+        });
+    }
+
+    const productSaveBtn = document.getElementById('product-save-btn');
+    if (productSaveBtn) {
+        productSaveBtn.addEventListener('click', saveProductDetail);
+    }
 }
 
 function setStockAction(action) {
@@ -184,6 +251,22 @@ function updateScanStatus(message) {
     if (status) status.textContent = message;
 }
 
+function updateProductStatus(message) {
+    const status = document.getElementById('product-status');
+    if (status) status.textContent = message;
+}
+
+function setProductScanButtonText(state) {
+    const productScanBtn = document.getElementById('product-scan-btn');
+    if (!productScanBtn) return;
+    productScanBtn.textContent = state === 'stop' ? '停止掃描' : '開始掃條碼';
+}
+
+function resetProductScannerUI() {
+    setProductScanButtonText('start');
+    updateProductStatus('');
+}
+
 function restartScannerLater() {
     setTimeout(() => {
         const section = document.getElementById('scanner-section');
@@ -206,6 +289,48 @@ async function postScanRecord(payload) {
     });
 
     return response.json();
+}
+
+async function saveProductDetail() {
+    const barcode = document.getElementById('product-barcode')?.value?.trim();
+    const name = document.getElementById('product-name')?.value?.trim();
+    const minStockRaw = document.getElementById('product-min-stock')?.value?.trim();
+    const minStock = minStockRaw === '' ? null : Math.max(0, parseInt(minStockRaw, 10) || 0);
+
+    if (!barcode) {
+        updateProductStatus('請輸入或掃描條碼');
+        return;
+    }
+
+    if (!name) {
+        updateProductStatus('請輸入品項名稱');
+        return;
+    }
+
+    if (!GAS_WEB_APP_URL) {
+        updateProductStatus('尚未設定 GAS Web App URL，請先完成後端部署。');
+        return;
+    }
+
+    updateProductStatus('送出中...');
+
+    try {
+        const response = await postScanRecord({
+            mode: 'product',
+            barcode,
+            productName: name,
+            minStock
+        });
+
+        if (response?.status === 'success') {
+            updateProductStatus('商品明細已更新');
+        } else {
+            updateProductStatus(response?.message || '更新失敗，請稍後再試');
+        }
+    } catch (error) {
+        console.error(error);
+        updateProductStatus('更新失敗，請檢查後端設定');
+    }
 }
 
 // Data Handling
