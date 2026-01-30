@@ -1,5 +1,5 @@
 const SHEET_ID = '1sQB5IIknjniETE7VAHmWHpY4XSJR0HKY80zhpqk4PY8';
-const SHEET_GID = '0'; // 即時庫存查詢表的工作表 ID
+const SHEET_GID = '226388722'; // 即時庫存查詢表的工作表 ID
 const SHEET_EXPORT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 const GAS_WEB_APP_URL = ''; // 請填入 Google Apps Script Web App URL
 
@@ -390,7 +390,9 @@ function fetchData() {
 function findProductByBarcode(barcode) {
     if (!sheetData) return null;
     // Normalize barcode just in case
-    return sheetData.find(row => String(row['Barcode (條碼)']) === String(barcode));
+    return sheetData.find(row => (
+        String(row['Barcode (條碼)'] || row['Barcode (條碼號碼)'] || row['條碼'] || '') === String(barcode)
+    ));
 }
 
 function renderTable(data, container) {
