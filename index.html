@@ -40,20 +40,20 @@
     <!-- Home Section -->
     <main id="home-section" class="container text-center hidden">
         <button class="back-btn" onclick="showSection('portal-section')">← Back to Portal</button>
-        <h1>Inventory Manager</h1>
-        <p class="subtitle">Select an action to begin</p>
+        <h1>打工仔的盤點工具</h1>
+        <p class="subtitle">請選擇要使用的功能</p>
 
         <div class="action-cards">
-            <div class="card" onclick="showSection('scanner-section')">
-                <div class="icon">📸</div>
-                <h2>Scan Barcode</h2>
-                <p>Scan items to check or update stock</p>
-            </div>
-
             <div class="card" onclick="showSection('inventory-section')">
                 <div class="icon">📊</div>
-                <h2>View Inventory</h2>
-                <p>Check current stock levels</p>
+                <h2>即時庫存查詢</h2>
+                <p>查看目前庫存狀態</p>
+            </div>
+
+            <div class="card" onclick="showSection('scanner-section')">
+                <div class="icon">📸</div>
+                <h2>進出貨掃描</h2>
+                <p>掃條碼進行進貨或出貨</p>
             </div>
 
             <div class="card" onclick="showSection('product-update-section')">
