@@ -59,11 +59,25 @@ function startScanner() {
         return;
     }
 
+    const supportedFormats = [
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF
+    ];
+
     // Initialize scanner
     // fps: frames per second, qrbox: scanning region size
     html5QrcodeScanner = new Html5QrcodeScanner(
         "reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        {
+            fps: 10,
+            qrbox: { width: 320, height: 200 },
+            formatsToSupport: supportedFormats
+        },
         /* verbose= */ false
     );
 
@@ -93,9 +107,23 @@ function startProductScanner() {
         return;
     }
 
+    const supportedFormats = [
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF
+    ];
+
     productQrcodeScanner = new Html5QrcodeScanner(
         "product-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        {
+            fps: 10,
+            qrbox: { width: 320, height: 200 },
+            formatsToSupport: supportedFormats
+        },
         false
     );
 
