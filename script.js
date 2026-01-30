@@ -76,7 +76,8 @@ function startScanner() {
         {
             fps: 10,
             qrbox: { width: 320, height: 200 },
-            formatsToSupport: supportedFormats
+            formatsToSupport: supportedFormats,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
         },
         /* verbose= */ false
     );
@@ -122,7 +123,8 @@ function startProductScanner() {
         {
             fps: 10,
             qrbox: { width: 320, height: 200 },
-            formatsToSupport: supportedFormats
+            formatsToSupport: supportedFormats,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
         },
         false
     );
