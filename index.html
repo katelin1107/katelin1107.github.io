@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hello World | Welcome</title>
     <meta name="description" content="A simple, elegant Hello World page.">
-    
+
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="background-shapes">
         <div class="shape shape-1"></div>
@@ -21,10 +23,101 @@
         <div class="shape shape-3"></div>
     </div>
 
-    <main class="container">
-        <h1>Hello World</h1>
-        <div class="divider"></div>
-        <p>Welcome to my digital space. <br> Crafted with code and creativity.</p>
+    <!-- Home Section -->
+    <main id="home-section" class="container text-center">
+        <h1>Inventory Manager</h1>
+        <p class="subtitle">Select an action to begin</p>
+
+        <div class="action-cards">
+            <div class="card" onclick="showSection('scanner-section')">
+                <div class="icon">📸</div>
+                <h2>Scan Barcode</h2>
+                <p>Scan items to check or update stock</p>
+            </div>
+
+            <div class="card" onclick="showSection('inventory-section')">
+                <div class="icon">📊</div>
+                <h2>View Inventory</h2>
+                <p>Check current stock levels</p>
+            </div>
+        </div>
     </main>
+
+    <!-- Scanner Section -->
+    <main id="scanner-section" class="container hidden">
+        <button class="back-btn" onclick="showSection('home-section')">← Back to Home</button>
+        <h1>Scan Item</h1>
+        <div class="scan-form">
+            <div class="field">
+                <label for="staff-name">點貨人員</label>
+                <input id="staff-name" type="text" placeholder="請先輸入點貨人員姓名" autocomplete="name">
+            </div>
+            <div class="field">
+                <label>作業類型</label>
+                <div class="segmented" role="group" aria-label="進出貨類型">
+                    <button type="button" class="segmented-btn active" data-action="in">進貨</button>
+                    <button type="button" class="segmented-btn" data-action="out">出貨</button>
+                </div>
+                <input id="stock-action" type="hidden" value="in">
+            </div>
+            <div class="field">
+                <label id="partner-label" for="partner-info">進貨廠商</label>
+                <input id="partner-info" type="text" placeholder="可選填">
+            </div>
+            <div class="field">
+                <label for="scan-quantity">數量</label>
+                <input id="scan-quantity" type="number" min="1" value="1" inputmode="numeric">
+            </div>
+        </div>
+        <div id="reader" width="600px"></div>
+        <p class="hint">Point camera at a barcode</p>
+        <div id="scan-status" class="scan-status"></div>
+    </main>
+
+    <!-- Inventory Section -->
+    <main id="inventory-section" class="container hidden">
+        <button class="back-btn" onclick="showSection('home-section')">← Back to Home</button>
+
+        <div class="header-content">
+            <h1>Current Inventory</h1>
+            <button id="refresh-btn" class="refresh-btn" aria-label="Refresh Data">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                    <path d="M16 21h5v-5" />
+                </svg>
+                Refresh
+            </button>
+        </div>
+
+        <div id="sheet-data" class="table-container">
+            <div class="loading">Loading data...</div>
+        </div>
+    </main>
+
+    <!-- Quantity Modal -->
+    <div id="quantity-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Update Quantity</h3>
+            <div id="modal-product-name" class="product-name">Product Name</div>
+            <div class="quantity-control">
+                <button onclick="adjustQuantity(-1)">-</button>
+                <span id="modal-quantity">0</span>
+                <button onclick="adjustQuantity(1)">+</button>
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+                <button class="save-btn" onclick="saveQuantity()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>
