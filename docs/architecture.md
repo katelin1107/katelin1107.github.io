@@ -92,7 +92,7 @@ graph LR
 
 ## 安全性考量
 - **API 權限**: Google Apps Script 部署為 Web App 時，權限設定為 `Execute as: Me` (擁有者)，`Access: Anyone` (任何網路使用者)。
-- **資料保護**: 建議在 GAS 中增加簡單的 Token 驗證，防止惡意寫入 (目前為開放設計)。
+- **資料保護**: 建議在 GAS 中增加 Token 驗證，前端請求需附上 `token`，避免未授權寫入。
 
 ## 延伸與擴充方向
 - 加入前端寫入流程與後端驗證。

@@ -23,6 +23,10 @@
  * 支援功能：讀取庫存 (GET)、更新庫存 (POST)
  */
 
+function getExpectedToken() {
+  return PropertiesService.getScriptProperties().getProperty('API_TOKEN');
+}
+
 // GET 請求：回傳所有資料
 function doGet(e) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -47,6 +51,11 @@ function doGet(e) {
 function doPost(e) {
   try {
     const postData = JSON.parse(e.postData.contents);
+    const expectedToken = getExpectedToken();
+    if (expectedToken && postData.token !== expectedToken) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Unauthorized' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -105,6 +114,13 @@ function doPost(e) {
 }
 ```
 
+## 步驟 2.1: 設定 Token（建議）
+1. 在 Apps Script 編輯器中，點擊 **專案設定 (Project Settings)**。
+2. 找到 **Script Properties** → 新增：
+   - Key: `API_TOKEN`
+   - Value: 自訂一組難猜的字串
+3. 前端 `script.js` 的 `API_TOKEN` 必須與此一致。
+
 ## 步驟 3: 部署為 Web 應用程式
 1. 點擊右上角的 **部署 (Deploy)** > **新增部署 (New deployment)**。
 2. 點擊齒輪圖示，選擇 **網頁應用程式 (Web app)**。
@@ -133,7 +149,8 @@ function doPost(e) {
 2. 更新 `SHEET_ID` 為您的 Google Sheets ID：
    - 範例：`https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit`
 3. 建議前端讀取「即時庫存查詢表」的 CSV，以顯示最新庫存。
-4. 確認前端能成功讀取資料並顯示表格。
+4. 設定 `GAS_WEB_APP_URL` 與 `API_TOKEN`。
+5. 確認前端能成功讀取資料並顯示表格。
 
 ## 測試方式
 - **讀取測試**：開啟前端頁面，確認資料表可載入。

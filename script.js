@@ -1,7 +1,8 @@
-const SHEET_ID = '1sQB5IIknjniETE7VAHmWHpY4XSJR0HKY80zhpqk4PY8';
-const SHEET_GID = '226388722'; // 即時庫存查詢表的工作表 ID
+const SHEET_ID = '1A2dMP4toVKsgeK6zWDLd6jjVrZf4pcbS';
+const SHEET_GID = '302153051'; // 即時庫存查詢表的工作表 ID
 const SHEET_EXPORT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
-const GAS_WEB_APP_URL = ''; // 請填入 Google Apps Script Web App URL
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyTxztTLjSqO_8TXe7pUH9c35svYZJsi9MCDFaIXgIaTm-Pf1ym2KpjtGPJSkl-ve839g/exec'; // 請填入 Google Apps Script Web App URL
+const API_TOKEN = 'yun-202602'; // 與 GAS Script Properties 的 API_TOKEN 一致
 
 let sheetData = []; // Store data globally for lookup
 let html5QrcodeScanner = null;
@@ -179,14 +180,16 @@ async function onScanSuccess(decodedText, decodedResult) {
         });
 
         if (response?.status === 'success') {
-            updateScanStatus(`已完成${scanContext.type === 'in' ? '進貨' : '出貨'}紀錄，數量：${scanContext.quantity}`);
+            const actionLabel = scanContext.type === 'in' ? '進貨' : '出貨';
+            const suffix = response?.optimistic ? '（已送出，請稍後確認表單）' : '';
+            updateScanStatus(`已完成${actionLabel}紀錄，數量：${scanContext.quantity}${suffix}`);
             fetchData();
         } else {
             updateScanStatus(response?.message || '寫入失敗，請稍後再試');
         }
     } catch (error) {
         console.error(error);
-        updateScanStatus('寫入失敗，請檢查後端設定');
+        updateScanStatus(error?.message || '寫入失敗，請檢查後端設定');
     } finally {
         restartScannerLater();
     }
@@ -297,18 +300,26 @@ function restartScannerLater() {
 }
 
 async function postScanRecord(payload) {
-    const response = await fetch(GAS_WEB_APP_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            ...payload,
-            scannedAt: new Date().toISOString()
-        })
+    const body = JSON.stringify({
+        token: API_TOKEN,
+        ...payload,
+        scannedAt: new Date().toISOString()
     });
 
-    return response.json();
+    try {
+        await fetch(GAS_WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain;charset=UTF-8'
+            },
+            body
+        });
+
+        return { status: 'success', optimistic: true };
+    } catch (error) {
+        throw error;
+    }
 }
 
 function getFileQrcodeReader() {
@@ -403,14 +414,15 @@ async function saveProductDetail() {
         });
 
         if (response?.status === 'success') {
-            updateProductStatus('商品明細已更新');
+            const suffix = response?.optimistic ? '（已送出，請稍後確認表單）' : '';
+            updateProductStatus(`商品明細已更新${suffix}`);
             clearProductForm();
         } else {
             updateProductStatus(response?.message || '更新失敗，請稍後再試');
         }
     } catch (error) {
         console.error(error);
-        updateProductStatus('更新失敗，請檢查後端設定');
+        updateProductStatus(error?.message || '更新失敗，請檢查後端設定');
     }
 }
 
