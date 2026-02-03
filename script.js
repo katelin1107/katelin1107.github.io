@@ -333,14 +333,48 @@ async function decodeBarcodeFromFile(file) {
         Html5QrcodeSupportedFormats.CODE_128
     ];
 
+    let normalizedFile = file;
+    let lastError = null;
+
     try {
-        const normalizedFile = await normalizeImageFile(file);
-        const processed = await preprocessBarcodeImage(normalizedFile);
-        return await reader.scanFile(processed, true, formats);
+        normalizedFile = await normalizeImageFile(file);
     } catch (error) {
-        // Fallback to original image if preprocessing fails
-        return reader.scanFile(file, true, formats);
+        lastError = error;
     }
+
+    normalizedFile = ensureFile(normalizedFile, file?.name);
+
+    try {
+        const processedBand = await preprocessBarcodeImage(normalizedFile, { mode: 'band' });
+        return await reader.scanFile(processedBand, true, formats);
+    } catch (error) {
+        lastError = error;
+    }
+
+    try {
+        const processedFull = await preprocessBarcodeImage(normalizedFile, { mode: 'full' });
+        return await reader.scanFile(processedFull, true, formats);
+    } catch (error) {
+        lastError = error;
+    }
+
+    try {
+        return await reader.scanFile(normalizedFile, true, formats);
+    } catch (error) {
+        lastError = error;
+    }
+
+    if (normalizedFile !== file) {
+        try {
+            return await reader.scanFile(file, true, formats);
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    const finalError = new Error('辨識失敗，請再拍清楚一點');
+    finalError.details = lastError;
+    throw finalError;
 }
 
 async function normalizeImageFile(file) {
@@ -361,26 +395,51 @@ async function normalizeImageFile(file) {
         quality: 0.9
     });
 
-    if (Array.isArray(converted)) {
-        return converted[0];
+    const output = Array.isArray(converted) ? converted[0] : converted;
+    if (output instanceof Blob) {
+        return output;
     }
-
-    return converted;
+    return new Blob([output], { type: 'image/jpeg' });
 }
 
-async function preprocessBarcodeImage(file) {
+function ensureFile(blobOrFile, originalName = 'upload') {
+    if (blobOrFile instanceof File) {
+        return blobOrFile;
+    }
+    const name = originalName ? originalName.replace(/\.(heic|heif)$/i, '.jpg') : 'upload.jpg';
+    const type = blobOrFile?.type || 'image/jpeg';
+    return new File([blobOrFile], name, { type });
+}
+
+async function preprocessBarcodeImage(file, options = { mode: 'band' }) {
     const imageBitmap = await createImageBitmap(file);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { willReadFrequently: true });
 
-    // Crop a horizontal band from the center to focus on barcode area
-    const cropWidth = Math.floor(imageBitmap.width * 0.9);
-    const cropHeight = Math.floor(imageBitmap.height * 0.35);
-    const cropX = Math.floor((imageBitmap.width - cropWidth) / 2);
-    const cropY = Math.floor((imageBitmap.height - cropHeight) / 2);
+    const mode = options?.mode === 'full' ? 'full' : 'band';
+    const sourceWidth = imageBitmap.width;
+    const sourceHeight = imageBitmap.height;
 
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
+    let cropWidth = sourceWidth;
+    let cropHeight = sourceHeight;
+    let cropX = 0;
+    let cropY = 0;
+
+    if (mode === 'band') {
+        // Crop a horizontal band from the center to focus on barcode area
+        cropWidth = Math.floor(sourceWidth * 0.9);
+        cropHeight = Math.floor(sourceHeight * 0.35);
+        cropX = Math.floor((sourceWidth - cropWidth) / 2);
+        cropY = Math.floor((sourceHeight - cropHeight) / 2);
+    }
+
+    const maxWidth = 1600;
+    const scale = Math.min(1, maxWidth / cropWidth);
+    const targetWidth = Math.floor(cropWidth * scale);
+    const targetHeight = Math.floor(cropHeight * scale);
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
     context.drawImage(
         imageBitmap,
         cropX,
@@ -389,14 +448,14 @@ async function preprocessBarcodeImage(file) {
         cropHeight,
         0,
         0,
-        cropWidth,
-        cropHeight
+        targetWidth,
+        targetHeight
     );
 
     // Enhance contrast and convert to grayscale
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
-    const contrast = 1.4; // >1 increases contrast
+    const contrast = 1.6; // >1 increases contrast
 
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
@@ -429,7 +488,7 @@ async function handleScanPhoto(event) {
         await onScanSuccess(decodedText, null);
     } catch (error) {
         console.error(error);
-        updateScanStatus('辨識失敗，請再拍清楚一點');
+        updateScanStatus(error?.message || '辨識失敗，請再拍清楚一點');
     } finally {
         event.target.value = '';
     }
@@ -450,7 +509,7 @@ async function handleProductPhoto(event) {
         updateProductStatus(`已辨識條碼：${decodedText}`);
     } catch (error) {
         console.error(error);
-        updateProductStatus('辨識失敗，請再拍清楚一點');
+        updateProductStatus(error?.message || '辨識失敗，請再拍清楚一點');
     } finally {
         event.target.value = '';
     }
