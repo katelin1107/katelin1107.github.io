@@ -141,50 +141,12 @@ async function onScanSuccess(decodedText, decodedResult) {
     // Handle the scanned code
     console.log(`Code matched = ${decodedText}`, decodedResult);
 
-    const scanContext = getScanContext();
-    if (!scanContext) {
-        return;
+    const barcodeInput = document.getElementById('scan-barcode');
+    if (barcodeInput) {
+        barcodeInput.value = decodedText;
     }
 
-    // Stop scanning to prevent multiple triggers
-    stopScanner();
-
-    // Lookup product
-    const product = findProductByBarcode(decodedText);
-    const productName = product ? (product['名稱'] || product['Product Name (產品名稱)'] || '') : '';
-
-    updateScanStatus(product ? `已找到商品：${productName || decodedText}` : `條碼 ${decodedText} 未找到對應商品`);
-
-    if (!GAS_WEB_APP_URL) {
-        updateScanStatus('尚未設定 GAS Web App URL，請先完成後端部署。');
-        restartScannerLater();
-        return;
-    }
-
-    try {
-        const response = await postScanRecord({
-            barcode: decodedText,
-            productName,
-            quantity: scanContext.quantity,
-            type: scanContext.type,
-            staff: scanContext.staff,
-            partnerInfo: scanContext.partnerInfo
-        });
-
-        if (response?.status === 'success') {
-            const actionLabel = scanContext.type === 'in' ? '進貨' : '出貨';
-            const suffix = response?.optimistic ? '（已送出，請稍後確認表單）' : '';
-            updateScanStatus(`已完成${actionLabel}紀錄，數量：${scanContext.quantity}${suffix}`);
-            fetchData();
-        } else {
-            updateScanStatus(response?.message || '寫入失敗，請稍後再試');
-        }
-    } catch (error) {
-        console.error(error);
-        updateScanStatus(error?.message || '寫入失敗，請檢查後端設定');
-    } finally {
-        restartScannerLater();
-    }
+    populateProductName(decodedText);
 }
 
 function onScanFailure(error) {
@@ -216,6 +178,19 @@ function initScanControls() {
         scanPhotoInput.addEventListener('change', handleScanPhoto);
     }
 
+    const scanBarcodeInput = document.getElementById('scan-barcode');
+    if (scanBarcodeInput) {
+        scanBarcodeInput.addEventListener('input', () => {
+            const barcode = scanBarcodeInput.value.trim();
+            populateProductName(barcode);
+        });
+    }
+
+    const scanSaveBtn = document.getElementById('scan-save-btn');
+    if (scanSaveBtn) {
+        scanSaveBtn.addEventListener('click', saveScanRecord);
+    }
+
     const productSaveBtn = document.getElementById('product-save-btn');
     if (productSaveBtn) {
         productSaveBtn.addEventListener('click', saveProductDetail);
@@ -229,7 +204,8 @@ function initScanControls() {
 
 function setStockAction(action) {
     const hiddenInput = document.getElementById('stock-action');
-    const partnerLabel = document.getElementById('partner-label');
+    const staffLabel = document.getElementById('staff-label');
+    const staffInput = document.getElementById('staff-name');
     const actionButtons = document.querySelectorAll('.segmented-btn');
 
     actionButtons.forEach(btn => {
@@ -237,8 +213,11 @@ function setStockAction(action) {
     });
 
     if (hiddenInput) hiddenInput.value = action;
-    if (partnerLabel) {
-        partnerLabel.textContent = action === 'in' ? '進貨廠商' : '客戶資訊';
+    if (staffLabel) {
+        staffLabel.textContent = action === 'in' ? '入庫人員' : '出庫人員';
+    }
+    if (staffInput) {
+        staffInput.placeholder = action === 'in' ? '請輸入入庫人員姓名' : '請輸入出庫人員姓名';
     }
 }
 
@@ -246,11 +225,10 @@ function getScanContext() {
     const staffInput = document.getElementById('staff-name');
     const actionInput = document.getElementById('stock-action');
     const quantityInput = document.getElementById('scan-quantity');
-    const partnerInput = document.getElementById('partner-info');
 
     const staff = staffInput?.value?.trim();
     if (!staff) {
-        updateScanStatus('請先輸入點貨人員姓名');
+        updateScanStatus('請先輸入人員姓名');
         return null;
     }
 
@@ -259,8 +237,7 @@ function getScanContext() {
     return {
         staff,
         type: actionInput?.value === 'out' ? 'out' : 'in',
-        quantity,
-        partnerInfo: partnerInput?.value?.trim() || ''
+        quantity
     };
 }
 
@@ -272,6 +249,26 @@ function updateScanStatus(message) {
 function updateProductStatus(message) {
     const status = document.getElementById('product-status');
     if (status) status.textContent = message;
+}
+
+function populateProductName(barcode) {
+    const nameInput = document.getElementById('scan-product-name');
+    if (!nameInput) return;
+
+    if (!barcode) {
+        nameInput.value = '';
+        updateScanStatus('');
+        return;
+    }
+
+    const productName = findProductNameByBarcode(barcode);
+    if (productName) {
+        nameInput.value = productName;
+        updateScanStatus(`已找到商品：${productName}`);
+    } else {
+        nameInput.value = '';
+        updateScanStatus(`條碼 ${barcode} 未找到對應商品`);
+    }
 }
 
 function resetScanStatusUI() {
@@ -316,6 +313,63 @@ async function postScanRecord(payload) {
         return { status: 'success', optimistic: true };
     } catch (error) {
         throw error;
+    }
+}
+
+async function saveScanRecord() {
+    const scanContext = getScanContext();
+    if (!scanContext) {
+        return;
+    }
+
+    const barcodeInput = document.getElementById('scan-barcode');
+    const nameInput = document.getElementById('scan-product-name');
+    const barcode = barcodeInput?.value?.trim();
+    let productName = nameInput?.value?.trim();
+
+    if (!barcode) {
+        updateScanStatus('請輸入或掃描條碼');
+        return;
+    }
+
+    if (!productName) {
+        productName = findProductNameByBarcode(barcode);
+    }
+
+    if (!productName) {
+        updateScanStatus('找不到商品名稱，請先確認條碼');
+        return;
+    }
+
+    if (!GAS_WEB_APP_URL) {
+        updateScanStatus('尚未設定 GAS Web App URL，請先完成後端部署。');
+        return;
+    }
+
+    updateScanStatus('送出中...');
+
+    try {
+        const response = await postScanRecord({
+            barcode,
+            productName,
+            quantity: scanContext.quantity,
+            type: scanContext.type,
+            staff: scanContext.staff
+        });
+
+        if (response?.status === 'success') {
+            const actionLabel = scanContext.type === 'in' ? '入庫' : '出庫';
+            const suffix = response?.optimistic ? '（已送出，請稍後確認表單）' : '';
+            updateScanStatus(`已完成${actionLabel}紀錄，數量：${scanContext.quantity}${suffix}`);
+            if (barcodeInput) barcodeInput.value = '';
+            if (nameInput) nameInput.value = '';
+            fetchData();
+        } else {
+            updateScanStatus(response?.message || '寫入失敗，請稍後再試');
+        }
+    } catch (error) {
+        console.error(error);
+        updateScanStatus(error?.message || '寫入失敗，請檢查後端設定');
     }
 }
 
@@ -669,6 +723,20 @@ function findProductDetailByBarcode(barcode) {
     return productDetailsData.find(row => (
         String(row['Barcode (條碼)'] || row['Barcode (條碼號碼)'] || row['條碼'] || '') === String(barcode)
     ));
+}
+
+function findProductNameByBarcode(barcode) {
+    const detail = findProductDetailByBarcode(barcode);
+    if (detail) {
+        return detail['名稱'] || detail['Product Name (產品名稱)'] || '';
+    }
+
+    const product = findProductByBarcode(barcode);
+    if (product) {
+        return product['名稱'] || product['Product Name (產品名稱)'] || '';
+    }
+
+    return '';
 }
 
 function renderTable(data, container) {
