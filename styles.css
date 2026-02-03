@@ -441,6 +441,12 @@ tr:hover td {
   background: rgba(169, 113, 75, 0.3);
 }
 
+.input-error {
+  margin-top: 0.35rem;
+  color: #b4533c;
+  font-size: 0.85rem;
+}
+
 /* Scanner specific overrides for html5-qrcode */
 #reader__scan_region {
   background: transparent !important;

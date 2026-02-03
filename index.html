@@ -135,8 +135,15 @@
                 <input id="product-name" type="text" placeholder="手動輸入品項名稱">
             </div>
             <div class="field">
+                <label for="product-initial-stock">庫存初始量（必填）</label>
+                <input id="product-initial-stock" type="number" min="0" step="1" placeholder="請輸入整數"
+                    inputmode="numeric">
+                <div id="product-initial-error" class="input-error hidden">請輸入有效的整數</div>
+            </div>
+            <div class="field">
                 <label for="product-min-stock">庫存下限</label>
-                <input id="product-min-stock" type="number" min="0" placeholder="可選填" inputmode="numeric">
+                <input id="product-min-stock" type="number" min="0" step="1" placeholder="請輸入整數" inputmode="numeric">
+                <div id="product-min-error" class="input-error hidden">請輸入有效的整數</div>
             </div>
             <div class="field">
                 <button id="product-save-btn" class="primary-btn" type="button">儲存商品明細</button>

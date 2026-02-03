@@ -58,13 +58,7 @@ function startScanner() {
     }
 
     const supportedFormats = [
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.ITF
+        Html5QrcodeSupportedFormats.CODE_128
     ];
 
     // Initialize scanner
@@ -107,13 +101,7 @@ function startProductScanner() {
     }
 
     const supportedFormats = [
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.ITF
+        Html5QrcodeSupportedFormats.CODE_128
     ];
 
     productQrcodeScanner = new Html5QrcodeScanner(
@@ -342,13 +330,7 @@ function getFileQrcodeReader() {
 async function decodeBarcodeFromFile(file) {
     const reader = getFileQrcodeReader();
     const formats = [
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.ITF
+        Html5QrcodeSupportedFormats.CODE_128
     ];
 
     return reader.scanFile(file, true, formats);
@@ -395,8 +377,17 @@ async function handleProductPhoto(event) {
 async function saveProductDetail() {
     const barcode = document.getElementById('product-barcode')?.value?.trim();
     const name = document.getElementById('product-name')?.value?.trim();
+    const initialStockRaw = document.getElementById('product-initial-stock')?.value?.trim();
     const minStockRaw = document.getElementById('product-min-stock')?.value?.trim();
-    const minStock = minStockRaw === '' ? null : Math.max(0, parseInt(minStockRaw, 10) || 0);
+
+    const initialStock = parseIntegerField(initialStockRaw);
+    const minStock = parseIntegerField(minStockRaw);
+
+    const initialError = document.getElementById('product-initial-error');
+    const minError = document.getElementById('product-min-error');
+
+    if (initialError) initialError.classList.add('hidden');
+    if (minError) minError.classList.add('hidden');
 
     if (!barcode) {
         updateProductStatus('請輸入或掃描條碼');
@@ -405,6 +396,18 @@ async function saveProductDetail() {
 
     if (!name) {
         updateProductStatus('請輸入品項名稱');
+        return;
+    }
+
+    if (initialStock === null) {
+        if (initialError) initialError.classList.remove('hidden');
+        updateProductStatus('庫存初始量需為整數');
+        return;
+    }
+
+    if (minStock === null) {
+        if (minError) minError.classList.remove('hidden');
+        updateProductStatus('庫存下限需為整數');
         return;
     }
 
@@ -420,6 +423,7 @@ async function saveProductDetail() {
             mode: 'product',
             barcode,
             productName: name,
+            initialStock,
             minStock
         });
 
@@ -439,13 +443,25 @@ async function saveProductDetail() {
 function clearProductForm() {
     const barcodeInput = document.getElementById('product-barcode');
     const nameInput = document.getElementById('product-name');
+    const initialStockInput = document.getElementById('product-initial-stock');
     const minStockInput = document.getElementById('product-min-stock');
     const productPhotoInput = document.getElementById('product-photo');
 
     if (barcodeInput) barcodeInput.value = '';
     if (nameInput) nameInput.value = '';
+    if (initialStockInput) initialStockInput.value = '';
     if (minStockInput) minStockInput.value = '';
     if (productPhotoInput) productPhotoInput.value = '';
+}
+
+function parseIntegerField(value) {
+    if (value === '' || value === null || typeof value === 'undefined') {
+        return null;
+    }
+    if (!/^\d+$/.test(value)) {
+        return null;
+    }
+    return parseInt(value, 10);
 }
 
 async function runProductWriteTest() {
