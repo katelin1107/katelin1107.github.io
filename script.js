@@ -334,12 +334,38 @@ async function decodeBarcodeFromFile(file) {
     ];
 
     try {
-        const processed = await preprocessBarcodeImage(file);
+        const normalizedFile = await normalizeImageFile(file);
+        const processed = await preprocessBarcodeImage(normalizedFile);
         return await reader.scanFile(processed, true, formats);
     } catch (error) {
         // Fallback to original image if preprocessing fails
         return reader.scanFile(file, true, formats);
     }
+}
+
+async function normalizeImageFile(file) {
+    const lowerName = (file?.name || '').toLowerCase();
+    const isHeic = file?.type === 'image/heic' || file?.type === 'image/heif' || lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
+
+    if (!isHeic) {
+        return file;
+    }
+
+    if (typeof heic2any !== 'function') {
+        throw new Error('HEIC 轉檔工具尚未載入');
+    }
+
+    const converted = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.9
+    });
+
+    if (Array.isArray(converted)) {
+        return converted[0];
+    }
+
+    return converted;
 }
 
 async function preprocessBarcodeImage(file) {
