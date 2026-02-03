@@ -333,7 +333,63 @@ async function decodeBarcodeFromFile(file) {
         Html5QrcodeSupportedFormats.CODE_128
     ];
 
-    return reader.scanFile(file, true, formats);
+    try {
+        const processed = await preprocessBarcodeImage(file);
+        return await reader.scanFile(processed, true, formats);
+    } catch (error) {
+        // Fallback to original image if preprocessing fails
+        return reader.scanFile(file, true, formats);
+    }
+}
+
+async function preprocessBarcodeImage(file) {
+    const imageBitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+
+    // Crop a horizontal band from the center to focus on barcode area
+    const cropWidth = Math.floor(imageBitmap.width * 0.9);
+    const cropHeight = Math.floor(imageBitmap.height * 0.35);
+    const cropX = Math.floor((imageBitmap.width - cropWidth) / 2);
+    const cropY = Math.floor((imageBitmap.height - cropHeight) / 2);
+
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    context.drawImage(
+        imageBitmap,
+        cropX,
+        cropY,
+        cropWidth,
+        cropHeight,
+        0,
+        0,
+        cropWidth,
+        cropHeight
+    );
+
+    // Enhance contrast and convert to grayscale
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const contrast = 1.4; // >1 increases contrast
+
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const gray = (r * 0.299 + g * 0.587 + b * 0.114);
+        const boosted = Math.min(255, Math.max(0, (gray - 128) * contrast + 128));
+        data[i] = boosted;
+        data[i + 1] = boosted;
+        data[i + 2] = boosted;
+    }
+
+    context.putImageData(imageData, 0, 0);
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (!blob) {
+        throw new Error('Image preprocess failed');
+    }
+    return blob;
 }
 
 async function handleScanPhoto(event) {
