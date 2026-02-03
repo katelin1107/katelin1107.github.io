@@ -1,7 +1,7 @@
-const SHEET_ID = '1A2dMP4toVKsgeK6zWDLd6jjVrZf4pcbS';
-const SHEET_GID = '302153051'; // 即時庫存查詢表的工作表 ID
+const SHEET_ID = '1sQB5IIknjniETE7VAHmWHpY4XSJR0HKY80zhpqk4PY8';
+const SHEET_GID = '226388722'; // 即時庫存查詢表的工作表 ID
 const SHEET_EXPORT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyTxztTLjSqO_8TXe7pUH9c35svYZJsi9MCDFaIXgIaTm-Pf1ym2KpjtGPJSkl-ve839g/exec'; // 請填入 Google Apps Script Web App URL
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxCP05mnRebBqfrCKCZk31TxSJ1_fcsV4kW-fLS7LNfPiUq2Q9ybMzfbHEL67ETAqp-/exec'; // 請填入 Google Apps Script Web App URL
 const API_TOKEN = 'yun-202602'; // 與 GAS Script Properties 的 API_TOKEN 一致
 
 let sheetData = []; // Store data globally for lookup
@@ -229,6 +229,11 @@ function initScanControls() {
         productSaveBtn.addEventListener('click', saveProductDetail);
     }
 
+    const productTestBtn = document.getElementById('product-test-btn');
+    if (productTestBtn) {
+        productTestBtn.addEventListener('click', runProductWriteTest);
+    }
+
     const productPhotoInput = document.getElementById('product-photo');
     if (productPhotoInput) {
         productPhotoInput.addEventListener('change', handleProductPhoto);
@@ -307,12 +312,17 @@ async function postScanRecord(payload) {
     });
 
     try {
+        if (navigator.sendBeacon) {
+            const blob = new Blob([body], { type: 'text/plain;charset=UTF-8' });
+            const queued = navigator.sendBeacon(GAS_WEB_APP_URL, blob);
+            if (queued) {
+                return { status: 'success', optimistic: true };
+            }
+        }
+
         await fetch(GAS_WEB_APP_URL, {
             method: 'POST',
             mode: 'no-cors',
-            headers: {
-                'Content-Type': 'text/plain;charset=UTF-8'
-            },
             body
         });
 
@@ -436,6 +446,34 @@ function clearProductForm() {
     if (nameInput) nameInput.value = '';
     if (minStockInput) minStockInput.value = '';
     if (productPhotoInput) productPhotoInput.value = '';
+}
+
+async function runProductWriteTest() {
+    if (!GAS_WEB_APP_URL) {
+        updateProductStatus('尚未設定 GAS Web App URL，請先完成後端部署。');
+        return;
+    }
+
+    const timestamp = new Date();
+    const barcode = `TEST-${timestamp.getTime()}`;
+    const name = `測試品項-${timestamp.toLocaleString()}`;
+
+    updateProductStatus('測試寫入中...');
+
+    try {
+        const response = await postScanRecord({
+            mode: 'product',
+            barcode,
+            productName: name,
+            minStock: 0
+        });
+
+        const suffix = response?.optimistic ? '（已送出，請稍後確認表單）' : '';
+        updateProductStatus(`測試寫入完成${suffix}`);
+    } catch (error) {
+        console.error(error);
+        updateProductStatus(error?.message || '測試寫入失敗，請檢查後端設定');
+    }
 }
 
 // Data Handling
