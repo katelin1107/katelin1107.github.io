@@ -235,6 +235,31 @@ tr:hover td {
   background: rgba(139, 94, 60, 0.06);
 }
 
+.low-stock-row td {
+  background: rgba(200, 72, 48, 0.16);
+}
+
+.low-stock-row:hover td {
+  background: rgba(200, 72, 48, 0.22);
+}
+
+.low-stock-row {
+  box-shadow: inset 0 0 0 2px rgba(200, 72, 48, 0.35);
+}
+
+.low-stock-cell {
+  color: #c2472f;
+  font-weight: 800;
+}
+
+.center-col {
+  text-align: center;
+}
+
+.barcode-col {
+  text-align: left;
+}
+
 /* Loading State */
 .loading {
   display: flex;

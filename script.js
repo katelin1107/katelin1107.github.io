@@ -739,6 +739,14 @@ function findProductNameByBarcode(barcode) {
     return '';
 }
 
+function parseNumericValue(value) {
+    if (value === null || typeof value === 'undefined') return null;
+    const cleaned = String(value).replace(/[^\d.-]/g, '');
+    if (!cleaned) return null;
+    const numberValue = Number(cleaned);
+    return Number.isFinite(numberValue) ? numberValue : null;
+}
+
 function renderTable(data, container) {
     if (!container) return;
 
@@ -756,20 +764,36 @@ function renderTable(data, container) {
     }
 
     const headers = Object.keys(validData[0]);
+    const stockHeader = headers.find(header => header === '即時總數量');
+    const minHeader = headers.find(header => header === '商品庫存下限');
+    const barcodeHeader = headers.find(header => /barcode|條碼/i.test(header));
 
-    let tableHTML = '<table><thead><tr>';
+    let tableHTML = '<table class="data-table"><thead><tr>';
 
     // Create Headers
     headers.forEach(header => {
-        tableHTML += `<th>${header}</th>`;
+        const headerClass = barcodeHeader && header === barcodeHeader ? ' class="barcode-col"' : ' class="center-col"';
+        tableHTML += `<th${headerClass}>${header}</th>`;
     });
     tableHTML += '</tr></thead><tbody>';
 
     // Create Rows
     validData.forEach(row => {
-        tableHTML += '<tr>';
+        const stockValue = stockHeader ? parseNumericValue(row[stockHeader]) : null;
+        const minValue = minHeader ? parseNumericValue(row[minHeader]) : null;
+        const isLowStock = stockValue !== null && minValue !== null && stockValue < minValue;
+
+        tableHTML += isLowStock ? '<tr class="low-stock-row">' : '<tr>';
         headers.forEach(header => {
-            tableHTML += `<td>${row[header] || ''}</td>`;
+            const cellValue = row[header] || '';
+            const isBarcode = barcodeHeader && header === barcodeHeader;
+            const classes = [];
+            if (isLowStock && header === stockHeader) {
+                classes.push('low-stock-cell');
+            }
+            classes.push(isBarcode ? 'barcode-col' : 'center-col');
+            const cellClass = classes.length ? ` class="${classes.join(' ')}"` : '';
+            tableHTML += `<td${cellClass}>${cellValue}</td>`;
         });
         tableHTML += '</tr>';
     });
