@@ -402,6 +402,15 @@ async function decodeBarcodeFromFile(file) {
     normalizedFile = ensureFile(normalizedFile, file?.name);
 
     try {
+        const quaggaResult = await detectWithQuagga(normalizedFile);
+        if (quaggaResult) {
+            return quaggaResult;
+        }
+    } catch (error) {
+        lastError = error;
+    }
+
+    try {
         const detected = await detectWithBarcodeDetector(normalizedFile);
         if (detected) {
             return detected;
@@ -583,6 +592,51 @@ function rotateCanvas(sourceCanvas, degrees) {
     ctx.rotate((normalized * Math.PI) / 180);
     ctx.drawImage(sourceCanvas, -width / 2, -height / 2);
     return rotated;
+}
+
+async function detectWithQuagga(file) {
+    if (typeof Quagga === 'undefined' || !Quagga?.decodeSingle) {
+        return '';
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    try {
+        const result = await new Promise((resolve, reject) => {
+            Quagga.decodeSingle({
+                src: objectUrl,
+                numOfWorkers: 0,
+                inputStream: {
+                    size: 1600
+                },
+                locator: {
+                    halfSample: true,
+                    patchSize: 'medium'
+                },
+                locate: true,
+                decoder: {
+                    readers: [
+                        'code_128_reader',
+                        'code_39_reader',
+                        'ean_reader',
+                        'ean_8_reader',
+                        'upc_reader'
+                    ]
+                }
+            }, (result) => {
+                if (result?.codeResult?.code) {
+                    resolve(result.codeResult.code);
+                } else {
+                    resolve('');
+                }
+            });
+        });
+
+        return result;
+    } catch (error) {
+        return '';
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
 }
 
 async function detectWithBarcodeDetector(file) {
