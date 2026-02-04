@@ -290,6 +290,23 @@ tr:hover td {
   color: #7a5a45;
 }
 
+.version-tag {
+  margin-top: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #7a5a45;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  background: rgba(255, 245, 235, 0.85);
+  border: 1px solid rgba(139, 94, 60, 0.2);
+  box-shadow: 0 6px 14px -10px rgba(86, 60, 40, 0.45);
+}
+
 .back-btn {
   background: none;
   border: none;
