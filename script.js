@@ -397,18 +397,22 @@ async function decodeBarcodeFromFile(file) {
 
     normalizedFile = ensureFile(normalizedFile, file?.name);
 
-    try {
-        const processedBand = await preprocessBarcodeImage(normalizedFile, { mode: 'band' });
-        return await reader.scanFile(processedBand, true, formats);
-    } catch (error) {
-        lastError = error;
-    }
+    const attempts = [
+        { mode: 'band', contrast: 1.6, binarize: false },
+        { mode: 'band', contrast: 1.9, binarize: true },
+        { mode: 'band-wide', contrast: 1.6, binarize: false },
+        { mode: 'band-wide', contrast: 1.9, binarize: true },
+        { mode: 'full', contrast: 1.6, binarize: false },
+        { mode: 'full', contrast: 1.9, binarize: true }
+    ];
 
-    try {
-        const processedFull = await preprocessBarcodeImage(normalizedFile, { mode: 'full' });
-        return await reader.scanFile(processedFull, true, formats);
-    } catch (error) {
-        lastError = error;
+    for (const option of attempts) {
+        try {
+            const processed = await preprocessBarcodeImage(normalizedFile, option);
+            return await reader.scanFile(processed, true, formats);
+        } catch (error) {
+            lastError = error;
+        }
     }
 
     try {
@@ -464,12 +468,12 @@ function ensureFile(blobOrFile, originalName = 'upload') {
     return new File([blobOrFile], name, { type });
 }
 
-async function preprocessBarcodeImage(file, options = { mode: 'band' }) {
+async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 1.6, binarize: false }) {
     const imageBitmap = await createImageBitmap(file);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { willReadFrequently: true });
 
-    const mode = options?.mode === 'full' ? 'full' : 'band';
+    const mode = options?.mode || 'band';
     const sourceWidth = imageBitmap.width;
     const sourceHeight = imageBitmap.height;
 
@@ -478,16 +482,19 @@ async function preprocessBarcodeImage(file, options = { mode: 'band' }) {
     let cropX = 0;
     let cropY = 0;
 
-    if (mode === 'band') {
+    if (mode === 'band' || mode === 'band-wide') {
         // Crop a horizontal band from the center to focus on barcode area
         cropWidth = Math.floor(sourceWidth * 0.9);
-        cropHeight = Math.floor(sourceHeight * 0.35);
+        cropHeight = Math.floor(sourceHeight * (mode === 'band-wide' ? 0.5 : 0.35));
         cropX = Math.floor((sourceWidth - cropWidth) / 2);
         cropY = Math.floor((sourceHeight - cropHeight) / 2);
     }
 
     const maxWidth = 1600;
-    const scale = Math.min(1, maxWidth / cropWidth);
+    const minWidth = 900;
+    const scaleUp = cropWidth < minWidth ? (minWidth / cropWidth) : 1;
+    const scaleDown = maxWidth / cropWidth;
+    const scale = Math.min(2, Math.max(1, Math.min(scaleUp, scaleDown)));
     const targetWidth = Math.floor(cropWidth * scale);
     const targetHeight = Math.floor(cropHeight * scale);
 
@@ -508,7 +515,9 @@ async function preprocessBarcodeImage(file, options = { mode: 'band' }) {
     // Enhance contrast and convert to grayscale
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
-    const contrast = 1.6; // >1 increases contrast
+    const contrast = typeof options?.contrast === 'number' ? options.contrast : 1.6; // >1 increases contrast
+    const binarize = Boolean(options?.binarize);
+    const threshold = 160;
 
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
@@ -516,9 +525,10 @@ async function preprocessBarcodeImage(file, options = { mode: 'band' }) {
         const b = data[i + 2];
         const gray = (r * 0.299 + g * 0.587 + b * 0.114);
         const boosted = Math.min(255, Math.max(0, (gray - 128) * contrast + 128));
-        data[i] = boosted;
-        data[i + 1] = boosted;
-        data[i + 2] = boosted;
+        const value = binarize ? (boosted > threshold ? 255 : 0) : boosted;
+        data[i] = value;
+        data[i + 1] = value;
+        data[i + 2] = value;
     }
 
     context.putImageData(imageData, 0, 0);
@@ -607,7 +617,7 @@ async function saveProductDetail() {
 
     if (minStock === null) {
         if (minError) minError.classList.remove('hidden');
-        updateProductStatus('庫存下限需為整數');
+        updateProductStatus('商品庫存下限需為整數');
         return;
     }
 
