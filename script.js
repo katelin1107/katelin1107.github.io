@@ -383,7 +383,11 @@ function getFileQrcodeReader() {
 async function decodeBarcodeFromFile(file) {
     const reader = getFileQrcodeReader();
     const formats = [
-        Html5QrcodeSupportedFormats.CODE_128
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A
     ];
 
     let normalizedFile = file;
@@ -397,13 +401,27 @@ async function decodeBarcodeFromFile(file) {
 
     normalizedFile = ensureFile(normalizedFile, file?.name);
 
+    try {
+        const detected = await detectWithBarcodeDetector(normalizedFile);
+        if (detected) {
+            return detected;
+        }
+    } catch (error) {
+        lastError = error;
+    }
+
     const attempts = [
-        { mode: 'band', contrast: 1.6, binarize: false },
-        { mode: 'band', contrast: 1.9, binarize: true },
-        { mode: 'band-wide', contrast: 1.6, binarize: false },
-        { mode: 'band-wide', contrast: 1.9, binarize: true },
-        { mode: 'full', contrast: 1.6, binarize: false },
-        { mode: 'full', contrast: 1.9, binarize: true }
+        { mode: 'band', contrast: 1.6, binarize: false, rotate: 0 },
+        { mode: 'band', contrast: 1.9, binarize: true, threshold: 160, rotate: 0 },
+        { mode: 'band', contrast: 2.1, binarize: true, threshold: 140, rotate: 0 },
+        { mode: 'band-wide', contrast: 1.6, binarize: false, rotate: 0 },
+        { mode: 'band-wide', contrast: 1.9, binarize: true, threshold: 160, rotate: 0 },
+        { mode: 'full', contrast: 1.6, binarize: false, rotate: 0 },
+        { mode: 'full', contrast: 1.9, binarize: true, threshold: 160, rotate: 0 },
+        { mode: 'band', contrast: 1.6, binarize: false, rotate: 90 },
+        { mode: 'band', contrast: 1.9, binarize: true, threshold: 160, rotate: 90 },
+        { mode: 'full', contrast: 1.6, binarize: false, rotate: 90 },
+        { mode: 'full', contrast: 1.9, binarize: true, threshold: 160, rotate: 90 }
     ];
 
     for (const option of attempts) {
@@ -468,7 +486,7 @@ function ensureFile(blobOrFile, originalName = 'upload') {
     return new File([blobOrFile], name, { type });
 }
 
-async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 1.6, binarize: false }) {
+async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 1.6, binarize: false, threshold: 160, rotate: 0 }) {
     const imageBitmap = await createImageBitmap(file);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -490,8 +508,8 @@ async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 
         cropY = Math.floor((sourceHeight - cropHeight) / 2);
     }
 
-    const maxWidth = 1600;
-    const minWidth = 900;
+    const maxWidth = 2200;
+    const minWidth = 1000;
     const scaleUp = cropWidth < minWidth ? (minWidth / cropWidth) : 1;
     const scaleDown = maxWidth / cropWidth;
     const scale = Math.min(2, Math.max(1, Math.min(scaleUp, scaleDown)));
@@ -517,7 +535,8 @@ async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 
     const data = imageData.data;
     const contrast = typeof options?.contrast === 'number' ? options.contrast : 1.6; // >1 increases contrast
     const binarize = Boolean(options?.binarize);
-    const threshold = 160;
+    const threshold = typeof options?.threshold === 'number' ? options.threshold : 160;
+    const rotate = Number(options?.rotate || 0);
 
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
@@ -533,11 +552,51 @@ async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 
 
     context.putImageData(imageData, 0, 0);
 
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    const outputCanvas = rotate ? rotateCanvas(canvas, rotate) : canvas;
+    const blob = await new Promise((resolve) => outputCanvas.toBlob(resolve, 'image/jpeg', 0.92));
     if (!blob) {
         throw new Error('Image preprocess failed');
     }
     return blob;
+}
+
+function rotateCanvas(sourceCanvas, degrees) {
+    const normalized = ((degrees % 360) + 360) % 360;
+    if (normalized === 0) return sourceCanvas;
+
+    const rotated = document.createElement('canvas');
+    const ctx = rotated.getContext('2d');
+    if (!ctx) return sourceCanvas;
+
+    const width = sourceCanvas.width;
+    const height = sourceCanvas.height;
+
+    if (normalized === 90 || normalized === 270) {
+        rotated.width = height;
+        rotated.height = width;
+    } else {
+        rotated.width = width;
+        rotated.height = height;
+    }
+
+    ctx.translate(rotated.width / 2, rotated.height / 2);
+    ctx.rotate((normalized * Math.PI) / 180);
+    ctx.drawImage(sourceCanvas, -width / 2, -height / 2);
+    return rotated;
+}
+
+async function detectWithBarcodeDetector(file) {
+    if (typeof BarcodeDetector !== 'function') {
+        return '';
+    }
+    const supported = ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a'];
+    const detector = new BarcodeDetector({ formats: supported });
+    const bitmap = await createImageBitmap(file);
+    const results = await detector.detect(bitmap);
+    if (Array.isArray(results) && results.length > 0 && results[0]?.rawValue) {
+        return results[0].rawValue;
+    }
+    return '';
 }
 
 async function handleScanPhoto(event) {
