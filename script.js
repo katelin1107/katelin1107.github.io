@@ -411,17 +411,24 @@ async function decodeBarcodeFromFile(file) {
     }
 
     const attempts = [
-        { mode: 'band', contrast: 1.6, binarize: false, rotate: 0 },
-        { mode: 'band', contrast: 1.9, binarize: true, threshold: 160, rotate: 0 },
-        { mode: 'band', contrast: 2.1, binarize: true, threshold: 140, rotate: 0 },
-        { mode: 'band-wide', contrast: 1.6, binarize: false, rotate: 0 },
-        { mode: 'band-wide', contrast: 1.9, binarize: true, threshold: 160, rotate: 0 },
-        { mode: 'full', contrast: 1.6, binarize: false, rotate: 0 },
-        { mode: 'full', contrast: 1.9, binarize: true, threshold: 160, rotate: 0 },
-        { mode: 'band', contrast: 1.6, binarize: false, rotate: 90 },
-        { mode: 'band', contrast: 1.9, binarize: true, threshold: 160, rotate: 90 },
-        { mode: 'full', contrast: 1.6, binarize: false, rotate: 90 },
-        { mode: 'full', contrast: 1.9, binarize: true, threshold: 160, rotate: 90 }
+        { mode: 'band', contrast: 1.6, binarize: false, rotate: 0, sharpen: false },
+        { mode: 'band', contrast: 1.9, binarize: true, threshold: 160, rotate: 0, sharpen: true },
+        { mode: 'band', contrast: 2.1, binarize: true, threshold: 140, rotate: 0, sharpen: true },
+        { mode: 'band-wide', contrast: 1.6, binarize: false, rotate: 0, sharpen: false },
+        { mode: 'band-wide', contrast: 1.9, binarize: true, threshold: 160, rotate: 0, sharpen: true },
+        { mode: 'band-bottom', contrast: 1.6, binarize: false, rotate: 0, sharpen: false },
+        { mode: 'band-bottom', contrast: 1.9, binarize: true, threshold: 160, rotate: 0, sharpen: true },
+        { mode: 'band-bottom-wide', contrast: 1.9, binarize: true, threshold: 160, rotate: 0, sharpen: true },
+        { mode: 'full', contrast: 1.6, binarize: false, rotate: 0, sharpen: false },
+        { mode: 'full', contrast: 1.9, binarize: true, threshold: 160, rotate: 0, sharpen: true },
+        { mode: 'band', contrast: 1.6, binarize: false, rotate: 90, sharpen: false },
+        { mode: 'band', contrast: 1.9, binarize: true, threshold: 160, rotate: 90, sharpen: true },
+        { mode: 'full', contrast: 1.6, binarize: false, rotate: 90, sharpen: false },
+        { mode: 'full', contrast: 1.9, binarize: true, threshold: 160, rotate: 90, sharpen: true },
+        { mode: 'band', contrast: 1.6, binarize: false, rotate: 180, sharpen: false },
+        { mode: 'band', contrast: 1.9, binarize: true, threshold: 160, rotate: 180, sharpen: true },
+        { mode: 'full', contrast: 1.6, binarize: false, rotate: 270, sharpen: false },
+        { mode: 'full', contrast: 1.9, binarize: true, threshold: 160, rotate: 270, sharpen: true }
     ];
 
     for (const option of attempts) {
@@ -486,7 +493,7 @@ function ensureFile(blobOrFile, originalName = 'upload') {
     return new File([blobOrFile], name, { type });
 }
 
-async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 1.6, binarize: false, threshold: 160, rotate: 0 }) {
+async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 1.6, binarize: false, threshold: 160, rotate: 0, sharpen: false }) {
     const imageBitmap = await createImageBitmap(file);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -500,12 +507,15 @@ async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 
     let cropX = 0;
     let cropY = 0;
 
-    if (mode === 'band' || mode === 'band-wide') {
+    if (mode === 'band' || mode === 'band-wide' || mode === 'band-bottom' || mode === 'band-bottom-wide') {
         // Crop a horizontal band from the center to focus on barcode area
         cropWidth = Math.floor(sourceWidth * 0.9);
-        cropHeight = Math.floor(sourceHeight * (mode === 'band-wide' ? 0.5 : 0.35));
+        const isWide = mode === 'band-wide' || mode === 'band-bottom-wide';
+        cropHeight = Math.floor(sourceHeight * (isWide ? 0.5 : 0.35));
         cropX = Math.floor((sourceWidth - cropWidth) / 2);
-        cropY = Math.floor((sourceHeight - cropHeight) / 2);
+        cropY = mode.startsWith('band-bottom')
+            ? Math.floor(sourceHeight - cropHeight - sourceHeight * 0.05)
+            : Math.floor((sourceHeight - cropHeight) / 2);
     }
 
     const maxWidth = 2200;
@@ -537,6 +547,7 @@ async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 
     const binarize = Boolean(options?.binarize);
     const threshold = typeof options?.threshold === 'number' ? options.threshold : 160;
     const rotate = Number(options?.rotate || 0);
+    const sharpen = Boolean(options?.sharpen);
 
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
@@ -550,6 +561,10 @@ async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 
         data[i + 2] = value;
     }
 
+    if (sharpen) {
+        applySharpen(imageData, canvas.width, canvas.height);
+    }
+
     context.putImageData(imageData, 0, 0);
 
     const outputCanvas = rotate ? rotateCanvas(canvas, rotate) : canvas;
@@ -558,6 +573,31 @@ async function preprocessBarcodeImage(file, options = { mode: 'band', contrast: 
         throw new Error('Image preprocess failed');
     }
     return blob;
+}
+
+function applySharpen(imageData, width, height) {
+    const data = imageData.data;
+    const copy = new Uint8ClampedArray(data);
+    const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0];
+    const getIndex = (x, y) => (y * width + x) * 4;
+
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            let sum = 0;
+            let k = 0;
+            for (let ky = -1; ky <= 1; ky++) {
+                for (let kx = -1; kx <= 1; kx++) {
+                    const idx = getIndex(x + kx, y + ky);
+                    sum += copy[idx] * kernel[k++];
+                }
+            }
+            const value = Math.min(255, Math.max(0, sum));
+            const out = getIndex(x, y);
+            data[out] = value;
+            data[out + 1] = value;
+            data[out + 2] = value;
+        }
+    }
 }
 
 function rotateCanvas(sourceCanvas, degrees) {
