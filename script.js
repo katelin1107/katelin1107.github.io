@@ -402,6 +402,15 @@ async function decodeBarcodeFromFile(file) {
     normalizedFile = ensureFile(normalizedFile, file?.name);
 
     try {
+        const zxingResult = await detectWithZXing(normalizedFile);
+        if (zxingResult) {
+            return zxingResult;
+        }
+    } catch (error) {
+        lastError = error;
+    }
+
+    try {
         const quaggaResult = await detectWithQuagga(normalizedFile);
         if (quaggaResult) {
             return quaggaResult;
@@ -592,6 +601,25 @@ function rotateCanvas(sourceCanvas, degrees) {
     ctx.rotate((normalized * Math.PI) / 180);
     ctx.drawImage(sourceCanvas, -width / 2, -height / 2);
     return rotated;
+}
+
+async function detectWithZXing(file) {
+    if (typeof ZXing === 'undefined' || !ZXing?.BrowserMultiFormatReader) {
+        return '';
+    }
+
+    const reader = new ZXing.BrowserMultiFormatReader();
+    const objectUrl = URL.createObjectURL(file);
+
+    try {
+        const result = await reader.decodeFromImageUrl(objectUrl);
+        return result?.text || '';
+    } catch (error) {
+        return '';
+    } finally {
+        reader.reset();
+        URL.revokeObjectURL(objectUrl);
+    }
 }
 
 async function detectWithQuagga(file) {
