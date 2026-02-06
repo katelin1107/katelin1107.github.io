@@ -51,6 +51,8 @@ function showSection(sectionId) {
 
     if (sectionId === 'product-update-section') {
         resetProductScannerUI();
+    } else {
+        clearProductForm();
     }
 }
 
