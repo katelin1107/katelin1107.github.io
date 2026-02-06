@@ -47,6 +47,8 @@ function showSection(sectionId) {
     // Handle Scanner specific logic
     if (sectionId === 'scanner-section') {
         resetScanStatusUI();
+    } else {
+        clearScanForm();
     }
 
     if (sectionId === 'product-update-section') {
@@ -363,8 +365,7 @@ async function saveScanRecord() {
             const actionLabel = scanContext.type === 'in' ? '入庫' : '出庫';
             const suffix = response?.optimistic ? '（已送出，請稍後確認表單）' : '';
             updateScanStatus(`已完成${actionLabel}紀錄，數量：${scanContext.quantity}${suffix}`);
-            if (barcodeInput) barcodeInput.value = '';
-            if (nameInput) nameInput.value = '';
+            clearScanForm();
             fetchData();
         } else {
             updateScanStatus(response?.message || '寫入失敗，請稍後再試');
@@ -373,6 +374,25 @@ async function saveScanRecord() {
         console.error(error);
         updateScanStatus(error?.message || '寫入失敗，請檢查後端設定');
     }
+}
+
+function clearScanForm() {
+    const staffInput = document.getElementById('staff-name');
+    const barcodeInput = document.getElementById('scan-barcode');
+    const nameInput = document.getElementById('scan-product-name');
+    const quantityInput = document.getElementById('scan-quantity');
+    const actionInput = document.getElementById('stock-action');
+    const scanPhotoInput = document.getElementById('scan-photo');
+
+    if (staffInput) staffInput.value = '';
+    if (barcodeInput) barcodeInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (quantityInput) quantityInput.value = '1';
+    if (actionInput) actionInput.value = 'in';
+    if (scanPhotoInput) scanPhotoInput.value = '';
+
+    setStockAction('in');
+    resetScanStatusUI();
 }
 
 function getFileQrcodeReader() {
